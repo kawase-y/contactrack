@@ -49,12 +49,7 @@ export class GoogleDriveService {
       
       // Google API クライアントの初期化
       await this.loadGoogleAPI()
-      await gapi.load('client', async () => {
-        await gapi.client.init({
-          apiKey: this.API_KEY,
-          discoveryDocs: this.DISCOVERY_DOCS
-        })
-      })
+      await this.initializeGoogleClient()
 
       this.isInitialized = true
       return true
@@ -98,6 +93,22 @@ export class GoogleDriveService {
     })
   }
 
+  private async initializeGoogleClient(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      gapi.load('client', async () => {
+        try {
+          await gapi.client.init({
+            apiKey: this.API_KEY,
+            discoveryDocs: this.DISCOVERY_DOCS
+          })
+          resolve()
+        } catch (error) {
+          reject(error)
+        }
+      })
+    })
+  }
+
   private updateSignInStatus(): void {
     // Google Identity Services では認証状態をトークンで管理
     this.isSignedIn = !!gapi.client.getToken()
@@ -124,11 +135,13 @@ export class GoogleDriveService {
             // トークンを gapi.client に設定
             gapi.client.setToken(response)
             this.isSignedIn = true
+            this.updateSignInStatus()
             resolve(true)
           }
         })
         
-        tokenClient.requestAccessToken()
+        // ユーザーが手動でクリックしたトークンリクエスト
+        tokenClient.requestAccessToken({ prompt: 'consent' })
       })
     } catch (error) {
       console.error('Google Drive sign in failed:', error)
